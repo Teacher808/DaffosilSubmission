@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+      body { 
+        font-family: 'Google Sans', sans-serif; 
+        text-align: center; 
+        padding: 10px; 
+        background-color: #ffffff;
+      }
+      
+      /* Big inputs for easy tapping */
+      input[type="text"] { 
+        width: 90%; 
+        padding: 12px; 
+        margin: 10px 0; 
+        border: 1px solid #ccc; 
+        border-radius: 8px; 
+        font-size: 16px; 
+      }
+
+      /* Style the file upload area */
+      .file-upload-wrapper {
+        border: 2px dashed #4285f4;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 15px 0;
+        background-color: #f8f9fa;
+      }
+
+      input[type="file"] {
+        font-size: 16px; 
+        width: 100%;
+      }
+
+      /* Big Blue Submit Button */
+      button { 
+        background-color: #4285f4; 
+        color: white; 
+        border: none; 
+        padding: 15px 30px; 
+        border-radius: 50px; 
+        font-size: 18px; 
+        font-weight: bold; 
+        cursor: pointer; 
+        width: 90%;
+        margin-top: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      }
+      button:active { background-color: #3367d6; transform: scale(0.98); }
+      button:disabled { background-color: #ccc; box-shadow: none; }
+
+      #status { margin-top: 20px; font-weight: bold; font-size: 16px; }
+      .success { color: #0f9d58; }
+      .error { color: #d93025; }
+      #fileList { text-align: left; margin: 10px 15px; font-size: 14px; color: #555; }
+    </style>
+  </head>
+  <body>
+    <h3>Submit Assignment</h3>
+    <form id="myForm">
+      
+      <input type="text" id="studentName" placeholder="Enter Your Name" required>
+      
+      <div class="file-upload-wrapper">
+        <label for="file" style="font-weight:bold; display:block; margin-bottom:10px;">
+          Tap to choose files or take photo:
+        </label>
+        <input type="file" id="file" name="file" multiple 
+               accept="image/*,application/pdf,.doc,.docx" 
+               onchange="showFileCount()">
+      </div>
+      
+      <div id="fileList"></div>
+      
+      <button type="button" id="submitBtn" onclick="startUpload()">
+        Submit Now
+      </button>
+    </form>
+    
+    <div id="status"></div>
+
+    <script>
+      var filesToUpload = [];
+      var currentFileIndex = 0;
+      var studentName = "";
+
+      function showFileCount() {
+        var input = document.getElementById('file');
+        var output = document.getElementById('fileList');
+        if (input.files.length > 0) {
+          output.innerHTML = "<strong>Selected:</strong> " + input.files.length + " file(s)";
+        } else {
+          output.innerText = "";
+        }
+      }
+
+      function startUpload() {
+        var nameInput = document.getElementById('studentName');
+        var fileInput = document.getElementById('file');
+        
+        if (nameInput.value.trim() === "") {
+          alert("Please type your name first!");
+          return;
+        }
+        if (fileInput.files.length === 0) {
+          alert("Please select a file or take a photo.");
+          return;
+        }
+
+        studentName = nameInput.value;
+        filesToUpload = fileInput.files;
+        currentFileIndex = 0;
+        
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('submitBtn').innerText = "Uploading... (0%)";
+        document.getElementById('status').className = "";
+        
+        processNextFile();
+      }
+
+      function processNextFile() {
+        if (currentFileIndex >= filesToUpload.length) {
+          document.getElementById('status').innerText = "✅ All files sent successfully!";
+          document.getElementById('status').className = "success";
+          document.getElementById('submitBtn').disabled = false;
+          document.getElementById('submitBtn').innerText = "Submit More";
+          document.getElementById('myForm').reset();
+          document.getElementById('fileList').innerText = "";
+          return;
+        }
+
+        var file = filesToUpload[currentFileIndex];
+        
+        // Size Check: 50MB Limit
+        if (file.size > 50 * 1024 * 1024) {
+             document.getElementById('status').innerText = "❌ File too big: " + file.name + " (Max 50MB)";
+             document.getElementById('status').className = "error";
+             document.getElementById('submitBtn').disabled = false;
+             return;
+        }
+
+        document.getElementById('status').innerText = "Uploading " + (currentFileIndex + 1) + " of " + filesToUpload.length + "...";
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var data = {
+            fileName: studentName + " - " + file.name,
+            myFile: e.target.result
+          };
+          
+          google.script.run
+            .withSuccessHandler(function(r) {
+              currentFileIndex++;
+              processNextFile();
+            })
+            .withFailureHandler(function(err) {
+              document.getElementById('status').innerText = "Error uploading " + file.name;
+              document.getElementById('status').className = "error";
+              document.getElementById('submitBtn').disabled = false;
+            })
+            .uploadFiles(data);
+        };
+        reader.readAsDataURL(file);
+      }
+    </script>
+  </body>
+</html>
